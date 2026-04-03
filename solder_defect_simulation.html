@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PCB Solder Defect Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Tahoma:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Tahoma,'MS Sans Serif',sans-serif;font-size:11px}
+html,body{height:100%;background:#008080;overflow:hidden}
+
+/* ═══ CLASSIC WIN32 HELPERS ═══ */
+.raised{border:2px solid;border-color:#ffffff #808080 #808080 #ffffff;box-shadow:inset 1px 1px 0 #dfdfdf,inset -1px -1px 0 #404040}
+.sunken{border:2px solid;border-color:#808080 #ffffff #ffffff #808080;box-shadow:inset 1px 1px 0 #404040,inset -1px -1px 0 #dfdfdf}
+.flat-border{border:1px solid #808080}
+
+/* ═══ WINDOW ═══ */
+.window{
+  position:absolute;inset:4px;
+  background:#d4d0c8;
+  border:2px solid;
+  border-color:#ffffff #404040 #404040 #ffffff;
+  box-shadow:2px 2px 0 #808080;
+  display:flex;flex-direction:column;
+  overflow:hidden;
+}
+
+/* ═══ TITLE BAR ═══ */
+.titlebar{
+  height:26px;flex-shrink:0;
+  background:linear-gradient(90deg,#0a246a 0%,#a6caf0 100%);
+  display:flex;align-items:center;padding:0 4px 0 6px;gap:6px;
+  user-select:none;
+}
+.tb-icon{width:16px;height:16px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23006600'/%3E%3Crect x='2' y='6' width='12' height='4' fill='%2300aa00'/%3E%3Ccircle cx='5' cy='8' r='2' fill='%23ffff00'/%3E%3Ccircle cx='8' cy='8' r='2' fill='%23ffff00'/%3E%3Ccircle cx='11' cy='8' r='2' fill='%23ffff00'/%3E%3C/svg%3E") center/contain no-repeat;flex-shrink:0}
+.tb-text{flex:1;color:#fff;font-size:12px;font-weight:700;text-shadow:1px 1px 1px rgba(0,0,0,0.5)}
+.tb-btns{display:flex;gap:2px}
+.tb-btn{
+  width:20px;height:18px;
+  background:#d4d0c8;
+  border:2px solid;border-color:#ffffff #404040 #404040 #ffffff;
+  box-shadow:inset 1px 1px 0 #dfdfdf;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:10px;font-weight:700;color:#000;
+  flex-shrink:0;
+}
+.tb-btn:active{border-color:#404040 #ffffff #ffffff #404040;box-shadow:inset 1px 1px 0 #808080}
+.tb-btn.close{margin-left:2px}
+
+/* ═══ MENU BAR ═══ */
+.menubar{
+  height:22px;flex-shrink:0;
+  background:#d4d0c8;
+  border-bottom:1px solid #808080;
+  display:flex;align-items:center;padding:2px 2px 0;
+}
+.mi{padding:2px 8px;cursor:pointer;border:1px solid transparent}
+.mi:hover,.mi.open{background:#0a246a;color:#fff;border-color:#0a246a}
+
+/* ═══ TOOLBAR ═══ */
+.toolbar{
+  height:34px;flex-shrink:0;
+  background:#d4d0c8;
+  border-bottom:2px solid;border-color:#808080 #ffffff #ffffff #808080;
+  display:flex;align-items:center;padding:2px 4px;gap:2px;
+}
+.tb-sep-v{width:2px;height:22px;border-left:1px solid #808080;border-right:1px solid #ffffff;margin:0 3px}
+.tbtn{
+  height:24px;min-width:24px;padding:0 6px;
+  background:#d4d0c8;
+  border:2px solid;border-color:#ffffff #808080 #808080 #ffffff;
+  box-shadow:inset 1px 1px 0 #dfdfdf;
+  cursor:pointer;display:flex;align-items:center;gap:4px;
+  white-space:nowrap;font-size:11px;
+}
+.tbtn:hover{background:#e8e4dc}
+.tbtn:active,.tbtn.pressed{border-color:#808080 #ffffff #ffffff #808080;box-shadow:inset 1px 1px 0 #808080;background:#c8c4bc}
+.tbtn .ico{font-size:14px;line-height:1}
+.tb-conf-label{font-size:11px;font-weight:700;margin-left:6px;padding:2px 8px;background:#fff;border:2px solid;border-color:#808080 #ffffff #ffffff #808080}
+
+/* ═══ MAIN LAYOUT ═══ */
+.main-area{flex:1;display:flex;overflow:hidden;padding:4px;gap:4px}
+
+/* ═══ LEFT PANEL ═══ */
+.left-panel{
+  width:195px;flex-shrink:0;
+  display:flex;flex-direction:column;gap:4px;
+}
+
+/* GroupBox */
+.groupbox{
+  background:#d4d0c8;
+  border:2px solid;border-color:#808080 #ffffff #ffffff #808080;
+  box-shadow:inset 1px 1px 0 #dfdfdf;
+  padding:4px;
+  position:relative;
+  display:flex;flex-direction:column;
+}
+.groupbox-label{
+  position:absolute;top:-7px;left:8px;
+  background:#d4d0c8;padding:0 3px;
+  font-size:11px;font-weight:700;
+}
+
+/* ListBox */
+.listbox{
+  border:2px solid;border-color:#808080 #ffffff #ffffff #808080;
+  box-shadow:inset 1px 1px 0 #404040;
+  background:#fff;overflow-y:auto;flex:1;
+}
+.lbi{
+  display:flex;align-items:center;gap:5px;
+  padding:3px 5px;cursor:pointer;
+  border-bottom:1px solid #f0f0f0;
+}
+.lbi:hover{background:#cce8ff}
+.lbi.sel{background:#0a246a;color:#fff}
+.lbi.sel .lbi-sub{color:#aac4e8}
+.lbi-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;border:1px solid rgba(0,0,0,0.3)}
+.lbi-main{flex:1}
+.lbi-name{font-weight:700;display:block}
+.lbi-sub{font-size:10px;display:block;color:#666}
+.lbi-badge{font-size:9px;font-weight:700;padding:1px 4px;border:1px solid;border-radius:1px;white-space:nowrap}
+
+/* Property grid */
+.prop-grid{width:100%;border-collapse:collapse}
+.prop-grid td{padding:3px 5px;border-bottom:1px solid #d0ccc4;vertical-align:top}
+.prop-grid tr:hover td{background:#e8e4dc}
+.prop-key{color:#444;width:50%;background:#e8e4dc;border-right:1px solid #c0bbb0}
+.prop-val{font-weight:700}
+
+/* Severity progress */
+.sev-label{font-size:10px;color:#444;margin:3px 0 2px}
+.sev-track{height:16px;background:#fff;border:2px solid;border-color:#808080 #ffffff #ffffff #808080;box-shadow:inset 1px 1px 0 #404040;overflow:hidden;position:relative}
+.sev-fill{height:100%;transition:width .5s,background .3s;background:#008000}
+.sev-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#000;text-shadow:0 0 3px #fff}
+
+/* ═══ CENTER PANEL ═══ */
+.center-panel{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}
+
+/* 3D Viewport */
+.viewport-frame{
+  flex:1;
+  border:2px solid;border-color:#808080 #ffffff #ffffff #808080;
+  box-shadow:inset 1px 1px 0 #404040;
+  background:#1a1a2e;
+  position:relative;overflow:hidden;
+}
+#c3d{display:block;width:100%;height:100%}
+.vp-title-bar{
+  position:absolute;top:0;left:0;right:0;height:20px;
+  background:linear-gradient(90deg,#0a246a,#3a6aba);
+  display:flex;align-items:center;padding:0 8px;gap:6px;pointer-events:none;
+}
+.vp-led{width:8px;height:8px;border-radius:50%;background:#00ff00;box-shadow:0 0 4px #00ff00;animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.vp-title-text{font-size:10px;color:#fff;font-weight:700;letter-spacing:.5px}
+.vp-hint{
+  position:absolute;top:24px;right:4px;
+  background:rgba(212,208,200,0.9);
+  border:1px solid #808080;
+  padding:4px 7px;font-size:10px;color:#000;line-height:1.8;
+  pointer-events:none;
+}
+
+/* Step bar at bottom of viewport */
+.step-bar{
+  position:absolute;bottom:0;left:0;right:0;
+  background:#d4d0c8;
+  border-top:2px solid;border-color:#ffffff #404040 #404040 #ffffff;
+  padding:5px 8px;
+  display:flex;align-items:center;gap:8px;
+}
+.step-num-box{
+  width:30px;height:30px;
+  background:#0a246a;color:#fff;
+  border:2px solid;border-color:#ffffff #404040 #404040 #ffffff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:700;flex-shrink:0;
+}
+.step-body{flex:1;min-width:0}
+.step-title{font-weight:700;font-size:11px;color:#0a246a;display:block}
+.step-desc{font-size:10px;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.step-dots{display:flex;gap:3px;margin-top:3px}
+.sdot{width:16px;height:6px;border:1px solid #808080;background:#d4d0c8}
+.sdot.done{background:#008000}
+.sdot.cur{background:#0a246a}
+.step-nav-btns{display:flex;gap:3px;flex-shrink:0}
+.snbtn{
+  width:28px;height:28px;background:#d4d0c8;
+  border:2px solid;border-color:#ffffff #808080 #808080 #ffffff;
+  box-shadow:inset 1px 1px 0 #dfdfdf;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;
+}
+.snbtn:active{border-color:#808080 #ffffff #ffffff #808080;box-shadow:inset 1px 1px 0 #808080}
+
+/* ═══ RIGHT PANEL ═══ */
+.right-panel{
+  width:220px;flex-shrink:0;
+  display:flex;flex-direction:column;gap:4px;
+}
+
+/* Result box */
+.result-box{
+  border:2px solid;border-color:#808080 #ffffff #ffffff #808080;
+  box-shadow:inset 1px 1px 0 #404040;
+  background:#fff;
+  padding:8px;
+  display:flex;align-items:center;gap:8px;
+}
+.ring-wrap{position:relative;width:60px;height:60px;flex-shrink:0}
+.ring-wrap canvas{position:absolute}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring-pct{font-size:14px;font-weight:700;line-height:1}
+.ring-lbl{font-size:8px;color:#666}
+.res-name{font-size:13px;font-weight:700;display:block;margin-bottom:2px}
+.res-status{font-size:10px}
+
+/* Data grid - classic ListView */
+.data-view{
+  border:2px solid;border-color:#808080 #ffffff #ffffff #808080;
+  box-shadow:inset 1px 1px 0 #404040;
+  background:#fff;overflow:hidden;
+}
+.dv-header{display:flex;background:#d4d0c8;border-bottom:1px solid #808080}
+.dvh-cell{
+  padding:2px 6px;font-weight:700;font-size:10px;
+  border-right:2px solid;border-color:#ffffff #808080 #808080 #ffffff;
+  box-shadow:inset 0 -1px 0 #dfdfdf;flex:1;
+}
+.dv-body{}
+.dv-row{display:flex;border-bottom:1px solid #e8e4dc}
+.dv-row:hover{background:#cce8ff}
+.dv-row:nth-child(even){background:#f4f4f4}
+.dv-row:nth-child(even):hover{background:#cce8ff}
+.dv-cell{padding:3px 6px;flex:1;border-right:1px solid #e8e4dc}
+
+/* Steps ListBox */
+.steps-box{
+  border:2px solid;border-color:#808080 #ffffff #ffffff #808080;
+  box-shadow:inset 1px 1px 0 #404040;
+  background:#fff;overflow-y:auto;flex:1;
+}
+.sbi{display:flex;align-items:flex-start;gap:6px;padding:4px 6px;border-bottom:1px solid #f0f0f0;cursor:pointer}
+.sbi:hover{background:#cce8ff}
+.sbi.active{background:#0a246a;color:#fff}
+.sbi.done{background:#e8ffe8}
+.sbi-arrow{
+  width:14px;flex-shrink:0;font-size:12px;font-weight:900;
+  color:transparent;margin-top:1px;line-height:1;
+}
+.sbi.active .sbi-arrow{color:#fff}
+.sbi-num{
+  width:16px;height:16px;border-radius:50%;
+  border:1px solid #888;background:#d4d0c8;
+  display:flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px;
+}
+.sbi.active .sbi-num{background:#fff;color:#0a246a;border-color:#fff}
+.sbi.done .sbi-num{background:#008000;border-color:#006600;color:#fff}
+.sbi-text{font-size:11px;font-weight:700}
+.sbi.active .sbi-text{color:#fff}
+.sbi.done .sbi-text{color:#006600}
+
+/* Tools */
+.tools-wrap{padding:4px;display:flex;flex-wrap:wrap;gap:3px}
+.tool-tag{
+  padding:2px 6px;
+  background:#d4d0c8;
+  border:2px solid;border-color:#ffffff #808080 #808080 #ffffff;
+  box-shadow:inset 1px 1px 0 #dfdfdf;
+  font-size:10px;
+}
+
+/* Big button */
+.big-btn{
+  height:30px;
+  background:#d4d0c8;
+  border:2px solid;border-color:#ffffff #808080 #808080 #ffffff;
+  box-shadow:inset 1px 1px 0 #dfdfdf;
+  cursor:pointer;font-size:12px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  transition:none;
+}
+.big-btn:hover{background:#e4e0d8}
+.big-btn:active{border-color:#808080 #ffffff #ffffff #808080;box-shadow:inset 1px 1px 0 #808080;padding:1px 0 0 1px}
+.big-btn:disabled{color:#888;cursor:not-allowed}
+
+/* ═══ STATUS BAR ═══ */
+.statusbar{
+  height:20px;flex-shrink:0;
+  background:#d4d0c8;
+  border-top:2px solid;border-color:#ffffff #404040 #404040 #ffffff;
+  display:flex;align-items:center;padding:0 4px;gap:3px;
+}
+.sb-pane{
+  height:14px;padding:0 6px;
+  border:1px solid;border-color:#808080 #ffffff #ffffff #808080;
+  display:flex;align-items:center;gap:4px;font-size:10px;
+  white-space:nowrap;
+}
+.sb-led{width:7px;height:7px;border-radius:50%;border:1px solid rgba(0,0,0,0.3)}
+
+/* Scrollbar - classic */
+::-webkit-scrollbar{width:16px;height:16px}
+::-webkit-scrollbar-track{background:#d4d0c8}
+::-webkit-scrollbar-thumb{background:#a0a0a0;border:2px solid;border-color:#ffffff #808080 #808080 #ffffff}
+::-webkit-scrollbar-button{background:#d4d0c8;border:2px solid;border-color:#ffffff #808080 #808080 #ffffff;display:block;height:16px;width:16px}
+</style>
+</head>
+<body>
+
+<div class="window">
+
+  <!-- TITLE BAR -->
+  <div class="titlebar">
+    <div class="tb-icon"></div>
+    <div class="tb-text">PCB Solder Defect Analyzer - [Inspection Session 001]</div>
+    <div class="tb-btns">
+      <div class="tb-btn">_</div>
+      <div class="tb-btn">&#9633;</div>
+      <div class="tb-btn close" style="background:#e83030">&#10005;</div>
+    </div>
+  </div>
+
+  <!-- MENU BAR -->
+  <div class="menubar">
+    <div class="mi"><u>F</u>ile</div>
+    <div class="mi"><u>E</u>dit</div>
+    <div class="mi"><u>V</u>iew</div>
+    <div class="mi"><u>A</u>nalyze</div>
+    <div class="mi"><u>S</u>imulation</div>
+    <div class="mi"><u>T</u>ools</div>
+    <div class="mi"><u>H</u>elp</div>
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <button class="tbtn" onclick="selectDefect(curDef)"><span class="ico">&#128269;</span> Scan</button>
+    <button class="tbtn" id="rotBtn" onclick="toggleRotate()"><span class="ico">&#8635;</span> Rotate</button>
+    <button class="tbtn" onclick="resetCam()"><span class="ico">&#8634;</span> Reset</button>
+    <div class="tb-sep-v"></div>
+    <button class="tbtn" onclick="zoomIn()"><span class="ico">&#128270;</span> Zoom+</button>
+    <button class="tbtn" onclick="zoomOut()"><span class="ico">&#128270;</span> Zoom-</button>
+    <div class="tb-sep-v"></div>
+    <button class="tbtn" onclick="prevStep()"><span class="ico">&#9664;</span> Prev</button>
+    <button class="tbtn" onclick="nextStep()"><span class="ico">&#9654;</span> Next</button>
+    <button class="tbtn" id="simBtnTop" onclick="runSim()"><span class="ico">&#9654;</span> Simulate</button>
+    <div class="tb-sep-v"></div>
+    <div class="tb-conf-label" id="tbLabel">GOOD_SOLDER &nbsp;|&nbsp; Confidence: 99.2%</div>
+  </div>
+
+  <!-- MAIN AREA -->
+  <div class="main-area">
+
+    <!-- ═══ LEFT PANEL ═══ -->
+    <div class="left-panel">
+
+      <!-- Defect ListBox -->
+      <div class="groupbox" style="flex:1;padding-top:12px">
+        <div class="groupbox-label">Defect Classification</div>
+        <div class="listbox" id="defectList"></div>
+      </div>
+
+      <!-- Severity -->
+      <div class="groupbox" style="padding-top:12px">
+        <div class="groupbox-label">Severity Indicator</div>
+        <div style="padding:4px">
+          <div class="sev-label">Level: <strong id="sevLbl">NONE</strong></div>
+          <div class="sev-track">
+            <div class="sev-fill" id="sevFill" style="width:5%"></div>
+            <div class="sev-text" id="sevTxt">NONE — 5%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Properties -->
+      <div class="groupbox" style="padding-top:12px">
+        <div class="groupbox-label">Properties</div>
+        <table class="prop-grid" style="width:100%">
+          <tr><td class="prop-key">Severity</td><td class="prop-val" id="pSev" style="color:#008000">NONE</td></tr>
+          <tr><td class="prop-key">Risk</td><td class="prop-val" id="pRisk" style="color:#008000">LOW</td></tr>
+          <tr><td class="prop-key">Rework</td><td class="prop-val" id="pRework" style="color:#008000">NO</td></tr>
+          <tr><td class="prop-key">Est. Time</td><td class="prop-val" id="pTime" style="color:#666">--</td></tr>
+          <tr><td class="prop-key">Confidence</td><td class="prop-val" id="pConf">99.2%</td></tr>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- ═══ CENTER PANEL ═══ -->
+    <div class="center-panel">
+
+      <!-- 3D Viewport -->
+      <div class="viewport-frame" id="vpwrap">
+        <canvas id="c3d"></canvas>
+        <div class="vp-title-bar">
+          <div class="vp-led"></div>
+          <div class="vp-title-text">3D INSPECTION VIEWPORT — <span id="vpName">GOOD_SOLDER</span> — Conf: <span id="vpConf">99.2%</span></div>
+        </div>
+        <div class="vp-hint">
+          Drag: Rotate<br>
+          Scroll: Zoom<br>
+          Right-drag: Pan
+        </div>
+
+        <!-- Step bar -->
+        <div class="step-bar">
+          <div class="step-num-box" id="stepNum">1</div>
+          <div class="step-body">
+            <span class="step-title" id="stepTitle">SELECT A DEFECT TYPE</span>
+            <div class="step-desc" id="stepDesc">Click a defect from the list on the left to begin corrective simulation.</div>
+            <div class="step-dots" id="stepDots"></div>
+          </div>
+          <div class="step-nav-btns">
+            <button class="snbtn" onclick="prevStep()">&#9664;</button>
+            <button class="snbtn" onclick="nextStep()">&#9654;</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ═══ RIGHT PANEL ═══ -->
+    <div class="right-panel">
+
+      <!-- Confidence result -->
+      <div class="groupbox" style="padding-top:12px">
+        <div class="groupbox-label">Classification Result</div>
+        <div class="result-box">
+          <div class="ring-wrap">
+            <canvas id="ringc" width="60" height="60"></canvas>
+            <div class="ring-center">
+              <div class="ring-pct" id="rPct">99%</div>
+              <div class="ring-lbl">CONF</div>
+            </div>
+          </div>
+          <div>
+            <span class="res-name" id="rName">Good Solder</span>
+            <span class="res-status" id="rStatus" style="color:#008000">&#10003; Within Spec</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metrics ListView -->
+      <div class="groupbox" style="padding-top:12px">
+        <div class="groupbox-label">Inspection Metrics</div>
+        <div class="data-view">
+          <div class="dv-header">
+            <div class="dvh-cell" style="flex:1.2">Parameter</div>
+            <div class="dvh-cell">Value</div>
+          </div>
+          <div class="dv-body">
+            <div class="dv-row"><div class="dv-cell" style="flex:1.2">Severity</div><div class="dv-cell"><b id="mSev" style="color:#008000">NONE</b></div></div>
+            <div class="dv-row"><div class="dv-cell" style="flex:1.2">Risk Level</div><div class="dv-cell"><b id="mRisk" style="color:#008000">LOW</b></div></div>
+            <div class="dv-row"><div class="dv-cell" style="flex:1.2">Rework</div><div class="dv-cell"><b id="mRework" style="color:#008000">NO</b></div></div>
+            <div class="dv-row"><div class="dv-cell" style="flex:1.2">Est. Time</div><div class="dv-cell" id="mTime" style="color:#666">--</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Corrective Steps -->
+      <div class="groupbox" style="flex:1;padding-top:12px;min-height:0">
+        <div class="groupbox-label">Corrective Procedure</div>
+        <div class="steps-box" id="stepsBox"></div>
+      </div>
+
+      <!-- Tools -->
+      <div class="groupbox" style="padding-top:12px">
+        <div class="groupbox-label">Tools Required</div>
+        <div class="tools-wrap" id="toolsWrap"></div>
+      </div>
+
+      <!-- Big button -->
+      <button class="big-btn" id="simBtn" onclick="runSim()">&#9654; &nbsp;Run Full Simulation</button>
+
+    </div>
+  </div>
+
+  <!-- STATUS BAR -->
+  <div class="statusbar">
+    <div class="sb-pane">
+      <div class="sb-led" id="led1" style="background:#00cc00"></div>
+      <span id="sbDefect">Defect: Good Solder</span>
+    </div>
+    <div class="sb-pane">
+      <div class="sb-led" style="background:#0088ff"></div>
+      ML Engine: Active
+    </div>
+    <div class="sb-pane">
+      <div class="sb-led" style="background:#00cc00"></div>
+      Camera: Online
+    </div>
+    <div class="sb-pane" id="sbStepPane">Step: 1 / 4</div>
+    <div class="sb-pane" style="margin-left:auto">CPEQC-029-030 &bull; Team 4 &bull; TIP-QC</div>
+    <div class="sb-pane" id="sbClock">--:--:--</div>
+  </div>
+
+</div>
+
+<script>
+// Clock
+function tick(){var n=new Date();document.getElementById('sbClock').textContent=n.toLocaleTimeString();}
+setInterval(tick,1000);tick();
+
+// ═══════════ DATA ═══════════
+var DEFECTS=[
+  {name:"Good Solder",sn:"GOOD_SOLDER",conf:99.2,sev:"NONE",sc:"#008000",sevW:5,rework:"NO",rc:"#008000",risk:"LOW",lc:"#008000",time:"--",tc:"#666",jcolor:0x34d399,jemit:0x003318,jrough:0.18,jmetal:0.8,shape:"good",
+   steps:[{t:"VISUAL INSPECTION",d:"Confirm shiny smooth solder surface with proper wetting angle 30-60 deg."},{t:"ELECTRICAL TEST",d:"Run continuity and resistance check to confirm proper joint conductance."},{t:"MECHANICAL CHECK",d:"Verify mechanical adhesion meets IPC-A-610 acceptance criteria."},{t:"APPROVE AND LOG",d:"Mark joint as PASS in inspection log. Proceed to next component."}],
+   tools:["Microscope","Multimeter","IPC-610 Checklist"],dotc:"#008000",badge:"PASS",badgec:"#008000"},
+  {name:"Solder Bridges",sn:"SOLDER_BRIDGES",conf:97.8,sev:"CRITICAL",sc:"#cc0000",sevW:92,rework:"YES",rc:"#cc0000",risk:"HIGH",lc:"#cc0000",time:"5-10 min",tc:"#cc0000",jcolor:0xcccccc,jemit:0x100000,jrough:0.15,jmetal:0.85,shape:"bridge",
+   steps:[{t:"IDENTIFY BRIDGE",d:"Use microscope to find exact location of bridge between adjacent pads."},{t:"APPLY FLUX",d:"Apply no-clean flux to improve solder flow during removal."},{t:"WICK EXCESS SOLDER",d:"Place desoldering wick. Apply iron at 320-350C until wick absorbs all solder."},{t:"INSPECT AND CLEAN",d:"Confirm bridge removed. Clean residual flux with isopropyl alcohol."},{t:"TOUCH-UP IF NEEDED",d:"If pad is starved add small solder amount at correct joint height."},{t:"ELECTRICAL TEST",d:"Run shorts test to confirm bridge is fully removed."}],
+   tools:["Desoldering Wick","Flux Pen","Soldering Iron","IPA Cleaner","Multimeter"],dotc:"#cc0000",badge:"CRIT",badgec:"#cc0000"},
+  {name:"Insufficient Solder",sn:"INSUFFICIENT_SOLDER",conf:95.1,sev:"HIGH",sc:"#cc6600",sevW:70,rework:"YES",rc:"#cc6600",risk:"MEDIUM",lc:"#cc6600",time:"3-5 min",tc:"#cc6600",jcolor:0xd4a040,jemit:0x1a1000,jrough:0.2,jmetal:0.75,shape:"insufficient",
+   steps:[{t:"CONFIRM DEFECT",d:"Check for exposed lead incomplete fillet or visible pad through solder."},{t:"APPLY FLUX",d:"Apply flux to promote proper solder flow and improve bonding."},{t:"HEAT THE JOINT",d:"Apply iron tip to lead and pad simultaneously not directly to solder."},{t:"ADD SOLDER WIRE",d:"Feed solder wire until a proper concave fillet forms on all sides."},{t:"COOL DOWN",d:"Remove iron. Allow joint to cool naturally without disturbing."},{t:"INSPECT FILLET",d:"Verify fillet wraps component lead to 270 deg minimum per IPC-A-610."}],
+   tools:["Solder Wire","Flux Pen","Soldering Iron","Microscope"],dotc:"#cc6600",badge:"HIGH",badgec:"#cc6600"},
+  {name:"Excess Solder",sn:"EXCESS_SOLDER",conf:93.4,sev:"MEDIUM",sc:"#cc6600",sevW:58,rework:"YES",rc:"#cc6600",risk:"MEDIUM",lc:"#cc6600",time:"4-7 min",tc:"#cc6600",jcolor:0xbbbbbb,jemit:0x080400,jrough:0.12,jmetal:0.88,shape:"excess",
+   steps:[{t:"ASSESS EXCESS",d:"Quantify excess solder. Check if it contacts adjacent pads or components."},{t:"APPLY FLUX",d:"Apply flux to improve wetting for controlled removal of excess material."},{t:"USE DESOLDERING WICK",d:"Press wick onto excess. Heat until wick absorbs excess solder."},{t:"SHAPE THE FILLET",d:"Re-heat briefly to allow solder to form correct concave fillet."},{t:"CLEAN RESIDUE",d:"Remove flux residue with IPA and lint-free swab."},{t:"VERIFY DIMENSIONS",d:"Confirm solder height does not exceed IPC-A-610 maximum specification."}],
+   tools:["Desoldering Wick","Flux Pen","Soldering Iron","IPA Cleaner","Calipers"],dotc:"#cc6600",badge:"MED",badgec:"#cc6600"},
+  {name:"Solder Spike",sn:"SOLDER_SPIKE",conf:91.7,sev:"HIGH",sc:"#cc6600",sevW:75,rework:"YES",rc:"#cc6600",risk:"MEDIUM",lc:"#cc6600",time:"4-6 min",tc:"#cc6600",jcolor:0x8899aa,jemit:0x050810,jrough:0.92,jmetal:0.05,shape:"cold",
+   steps:[{t:"IDENTIFY SOLDER SPIKE",d:"Look for sharp pointed protrusion or icicle-like spike on the solder joint under microscope."},{t:"APPLY FLUX",d:"Apply liquid or gel flux around entire joint perimeter to aid reflow."},{t:"REFLOW THE JOINT",d:"Apply iron tip to spike base at full liquidus temperature. Hold 2-3 seconds."},{t:"ADD SOLDER IF NEEDED",d:"If volume is low after reflow, add small amount of fresh solder wire."},{t:"CONTROLLED COOLDOWN",d:"Remove heat and allow joint to solidify undisturbed without movement."},{t:"INSPECT SURFACE",d:"Verify bright shiny surface with proper concave meniscus and no spike present."}],
+   tools:["Flux Gel","Soldering Iron","Solder Wire","Hot Air Gun","Microscope"],dotc:"#cc6600",badge:"HIGH",badgec:"#cc6600"}
+];
+
+var curDef=0,curStep=0,autoRot=true,simRunning=false;
+
+// Build defect listbox
+function buildList(){
+  var h='';
+  for(var i=0;i<DEFECTS.length;i++){
+    var d=DEFECTS[i];
+    h+='<div class="lbi'+(i===0?' sel':'')+'" id="lbi-'+i+'" onclick="selectDefect('+i+')">'
+      +'<div class="lbi-dot" style="background:'+d.dotc+'"></div>'
+      +'<div class="lbi-main"><span class="lbi-name">'+d.name+'</span><span class="lbi-sub">'+d.sn+'</span></div>'
+      +'<span class="lbi-badge" style="color:'+d.badgec+';border-color:'+d.badgec+'">'+d.badge+'</span>'
+      +'</div>';
+  }
+  document.getElementById('defectList').innerHTML=h;
+}
+
+// ═══════════ THREE.JS ═══════════
+var vpwrap=document.getElementById('vpwrap');
+var canvas=document.getElementById('c3d');
+var renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.setClearColor(0x1a1a2e,1);
+
+var scene=new THREE.Scene();
+var camera=new THREE.PerspectiveCamera(42,1,0.1,200);
+
+scene.add(new THREE.AmbientLight(0xffffff,0.55));
+var sun=new THREE.DirectionalLight(0xfff5e0,1.3);
+sun.position.set(6,10,7);sun.castShadow=true;
+sun.shadow.mapSize.width=2048;sun.shadow.mapSize.height=2048;
+sun.shadow.camera.left=-9;sun.shadow.camera.right=9;
+sun.shadow.camera.top=9;sun.shadow.camera.bottom=-9;
+sun.shadow.camera.near=1;sun.shadow.camera.far=40;sun.shadow.bias=-0.001;
+scene.add(sun);
+var fill=new THREE.DirectionalLight(0x4488ff,0.4);fill.position.set(-6,4,-4);scene.add(fill);
+var jLight=new THREE.PointLight(0xffffff,1.0,7);jLight.position.set(0,2,0);scene.add(jLight);
+
+var pcbGroup=new THREE.Group();scene.add(pcbGroup);
+
+var mTop=new THREE.MeshStandardMaterial({color:0x0d5c2e,roughness:0.45,metalness:0.1});
+var mBot=new THREE.MeshStandardMaterial({color:0x0a3c1e,roughness:0.6,metalness:0.05});
+var mEdge=new THREE.MeshStandardMaterial({color:0x093010,roughness:0.7,metalness:0.05});
+var mTr=new THREE.MeshStandardMaterial({color:0xaa7722,roughness:0.25,metalness:0.9});
+var mPad=new THREE.MeshStandardMaterial({color:0xd4a035,roughness:0.2,metalness:0.92});
+var mIC=new THREE.MeshStandardMaterial({color:0x111122,roughness:0.5,metalness:0.25});
+var mPin=new THREE.MeshStandardMaterial({color:0xb8b8b8,roughness:0.2,metalness:0.95});
+var mCap=new THREE.MeshStandardMaterial({color:0x1a2c88,roughness:0.4,metalness:0.2});
+var mRes=new THREE.MeshStandardMaterial({color:0x7a5a10,roughness:0.7,metalness:0.05});
+var mBand=new THREE.MeshStandardMaterial({color:0xee8800,roughness:1,metalness:0});
+var mStrip=new THREE.MeshStandardMaterial({color:0xeeeeee,roughness:1,metalness:0});
+
+function mk(geo,mat,cast,recv){var m=new THREE.Mesh(geo,mat);if(cast)m.castShadow=true;if(recv)m.receiveShadow=true;return m;}
+
+function buildPCB(){
+  while(pcbGroup.children.length>0)pcbGroup.remove(pcbGroup.children[0]);
+  var BW=7.2,BH=4.8,BD=0.2,TY=BD/2;
+  pcbGroup.add(mk(new THREE.BoxGeometry(BW,BD,BH),[mEdge,mEdge,mTop,mBot,mEdge,mEdge],true,true));
+  var SY=TY+0.003;
+  [-1.6,-0.55,0.55,1.6].forEach(function(z){var t=mk(new THREE.BoxGeometry(BW-0.4,0.012,0.05),mTr);t.position.set(0,SY,z);pcbGroup.add(t);});
+  [-2.8,-1.8,-0.8,0.8,1.8,2.8].forEach(function(x){var t=mk(new THREE.BoxGeometry(0.05,0.012,BH-0.4),mTr);t.position.set(x,SY,0);pcbGroup.add(t);});
+  [[-0.8,-1.1],[0,-1.1],[0.8,-1.1],[-0.8,0],[0,0],[0.8,0],[-0.8,1.1],[0,1.1],[0.8,1.1]].forEach(function(p){
+    var pm=mk(new THREE.CylinderGeometry(0.23,0.23,0.018,28),mPad,false,true);pm.position.set(p[0],SY+0.009,p[1]);pcbGroup.add(pm);
+  });
+  addIC(-2.0,TY,1.8,1.3,0.9,0.24);addIC(0.2,TY,1.8,0.7,0.6,0.20);addIC(2.0,TY,1.8,0.6,0.5,0.17);
+  addCap(-3.1,TY,1.9,0.17,0.36);addCap(-3.1,TY,-1.9,0.17,0.36);addCap(3.1,TY,1.9,0.13,0.26);addCap(3.1,TY,-1.9,0.13,0.26);
+  addRes(-1.6,TY,-1.9);addRes(-1.0,TY,-1.9);addRes(-0.4,TY,-1.9);addRes(-1.6,TY,1.3);addRes(-1.0,TY,1.3);addRes(1.0,TY,0.0);
+  addConnector(3.3,TY,0);
+  buildJoint(curDef);
+}
+
+function addIC(x,TY,z,w,d,h){
+  var m=mk(new THREE.BoxGeometry(w,h,d),mIC,true,true);m.position.set(x,TY+h/2,z);pcbGroup.add(m);
+  var pc=Math.max(2,Math.floor(d/0.15));
+  for(var i=0;i<pc;i++){var pz=-d/2+(d/pc)*(i+0.5);[-w/2-0.045,w/2+0.045].forEach(function(sx){var p=mk(new THREE.BoxGeometry(0.055,0.030,0.065),mPin);p.position.set(x+sx,TY+0.015,z+pz);pcbGroup.add(p);});}
+  var dot=mk(new THREE.CylinderGeometry(0.05,0.05,0.005,12),new THREE.MeshStandardMaterial({color:0x555577,roughness:1}));dot.position.set(x-w/2+0.12,TY+h+0.001,z-d/2+0.12);pcbGroup.add(dot);
+}
+function addCap(x,TY,z,r,h){
+  var m=mk(new THREE.CylinderGeometry(r,r,h,20),mCap,true);m.position.set(x,TY+h/2,z);pcbGroup.add(m);
+  var sm=mk(new THREE.CylinderGeometry(r+0.003,r+0.003,0.04,20),mStrip);sm.position.set(x,TY+h-0.04,z);pcbGroup.add(sm);
+  [-r*0.5,r*0.5].forEach(function(dx){var lm=mk(new THREE.BoxGeometry(0.03,0.04,0.06),mPin);lm.position.set(x+dx,TY+0.02,z);pcbGroup.add(lm);});
+}
+function addRes(x,TY,z){
+  var w=0.32,h=0.14;var m=mk(new THREE.BoxGeometry(w,h,h*0.9),mRes,true);m.position.set(x,TY+h/2,z);pcbGroup.add(m);
+  var bm=mk(new THREE.BoxGeometry(0.035,h+0.003,h*0.92),mBand);bm.position.set(x+0.05,TY+h/2,z);pcbGroup.add(bm);
+  [-w/2-0.04,w/2+0.04].forEach(function(dx){var lm=mk(new THREE.BoxGeometry(0.06,0.03,0.07),mPin);lm.position.set(x+dx,TY+0.015,z);pcbGroup.add(lm);});
+}
+function addConnector(x,TY,z){
+  var cM=new THREE.MeshStandardMaterial({color:0x1a1a1a,roughness:0.5,metalness:0.4}),hM=new THREE.MeshStandardMaterial({color:0x444444});
+  var m=mk(new THREE.BoxGeometry(0.28,0.38,1.5),cM,true);m.position.set(x,TY+0.19,z);pcbGroup.add(m);
+  for(var i=-2;i<=2;i++){
+    var hm=mk(new THREE.BoxGeometry(0.12,0.4,0.12),hM);hm.position.set(x,TY+0.19,z+i*0.28);pcbGroup.add(hm);
+    var pm=mk(new THREE.BoxGeometry(0.04,0.36,0.04),mPin);pm.position.set(x,TY+0.19,z+i*0.28);pcbGroup.add(pm);
+  }
+}
+
+var sObjs=[];
+function clearJoint(){sObjs.forEach(function(o){pcbGroup.remove(o);});sObjs=[];}
+function addJ(m){m.castShadow=true;pcbGroup.add(m);sObjs.push(m);}
+
+function buildJoint(idx){
+  clearJoint();
+  var d=DEFECTS[idx],JY=0.102,JX=0,JZ=0;
+  var jM=new THREE.MeshStandardMaterial({color:d.jcolor,emissive:d.jemit,roughness:d.jrough,metalness:d.jmetal});
+  if(d.shape==='good'){var g=new THREE.SphereGeometry(0.23,32,24);g.scale(1,0.62,1);var m=new THREE.Mesh(g,jM);m.position.set(JX,JY+0.135,JZ);addJ(m);}
+  else if(d.shape==='bridge'){
+    var g1=new THREE.SphereGeometry(0.22,28,20);g1.scale(1,0.6,1);var m1=new THREE.Mesh(g1,jM);m1.position.set(JX-0.4,JY+0.12,JZ);addJ(m1);
+    var m2=new THREE.Mesh(new THREE.BoxGeometry(0.85,0.09,0.18),jM);m2.position.set(JX,JY+0.09,JZ);addJ(m2);
+    var g3=new THREE.SphereGeometry(0.19,28,20);g3.scale(1,0.55,1);var m3=new THREE.Mesh(g3,jM);m3.position.set(JX+0.4,JY+0.11,JZ);addJ(m3);
+    var rr=new THREE.Mesh(new THREE.TorusGeometry(0.55,0.025,10,40),new THREE.MeshBasicMaterial({color:0xff4444,transparent:true,opacity:0.5}));rr.rotation.x=Math.PI/2;rr.position.set(JX,JY+0.005,JZ);pcbGroup.add(rr);sObjs.push(rr);
+  }
+  else if(d.shape==='insufficient'){var g2=new THREE.SphereGeometry(0.13,24,18);g2.scale(1,0.45,1);var ms2=new THREE.Mesh(g2,jM);ms2.position.set(JX,JY+0.055,JZ);addJ(ms2);var r2=new THREE.Mesh(new THREE.TorusGeometry(0.22,0.014,8,36),new THREE.MeshBasicMaterial({color:0xffaa00,transparent:true,opacity:0.7}));r2.rotation.x=Math.PI/2;r2.position.set(JX,JY+0.005,JZ);pcbGroup.add(r2);sObjs.push(r2);}
+  else if(d.shape==='excess'){
+    var g4=new THREE.SphereGeometry(0.32,32,26);g4.scale(1,0.72,1);var ms4=new THREE.Mesh(g4,jM);ms4.position.set(JX,JY+0.2,JZ);addJ(ms4);
+    var dr=new THREE.SphereGeometry(0.1,14,10);dr.scale(1.1,0.5,1);var dm1=new THREE.Mesh(dr,jM);dm1.position.set(JX+0.25,JY+0.04,JZ+0.1);addJ(dm1);
+    var r4=new THREE.Mesh(new THREE.TorusGeometry(0.38,0.018,8,40),new THREE.MeshBasicMaterial({color:0xff8800,transparent:true,opacity:0.55}));r4.rotation.x=Math.PI/2;r4.position.set(JX,JY+0.005,JZ);pcbGroup.add(r4);sObjs.push(r4);
+  }
+  else if(d.shape==='cold'){
+    var g5=new THREE.SphereGeometry(0.22,9,7);g5.scale(1,0.58,1);var ms5=new THREE.Mesh(g5,jM);ms5.position.set(JX,JY+0.12,JZ);addJ(ms5);
+    var bM=new THREE.MeshStandardMaterial({color:0x7a8a9a,roughness:1,metalness:0});
+    for(var bi=0;bi<10;bi++){var ba=(bi/10)*Math.PI*2;var bb=new THREE.Mesh(new THREE.SphereGeometry(0.04,7,5),bM);bb.position.set(JX+Math.cos(ba)*0.17,JY+0.13,JZ+Math.sin(ba)*0.17);addJ(bb);}
+  }
+  else if(d.shape==='cracked'){
+    var g6=new THREE.SphereGeometry(0.22,28,22);g6.scale(1,0.6,1);var ms6=new THREE.Mesh(g6,jM);ms6.position.set(JX,JY+0.13,JZ);addJ(ms6);
+    var cm=new THREE.MeshStandardMaterial({color:0x050000,roughness:1,metalness:0});
+    var c1=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.25,0.022),cm);c1.rotation.y=0.35;c1.position.set(JX,JY+0.13,JZ);addJ(c1);
+    var c2=new THREE.Mesh(new THREE.BoxGeometry(0.32,0.2,0.018),cm);c2.rotation.y=-0.9;c2.position.set(JX+0.04,JY+0.10,JZ+0.03);addJ(c2);
+    var r6=new THREE.Mesh(new THREE.TorusGeometry(0.27,0.018,8,36),new THREE.MeshBasicMaterial({color:0xff2222,transparent:true,opacity:0.4}));r6.rotation.x=Math.PI/2;r6.position.set(JX,JY+0.005,JZ);pcbGroup.add(r6);sObjs.push(r6);
+  }
+  // 3D Arrow pointing down at solder joint
+  var arrowColor = parseInt(d.sc.replace('#','0x'));
+  var arrowMat = new THREE.MeshStandardMaterial({color:arrowColor, emissive:arrowColor, emissiveIntensity:0.4, roughness:0.4, metalness:0.3});
+  // Arrow shaft
+  var shaft = mk(new THREE.CylinderGeometry(0.04, 0.04, 0.5, 12), arrowMat, true);
+  shaft.position.set(JX, JY + 0.85, JZ);
+  pcbGroup.add(shaft); sObjs.push(shaft);
+  // Arrow head (cone pointing DOWN)
+  var head = mk(new THREE.ConeGeometry(0.13, 0.22, 12), arrowMat, true);
+  head.position.set(JX, JY + 0.48, JZ);
+  head.rotation.z = Math.PI; // flip to point down
+  pcbGroup.add(head); sObjs.push(head);
+
+  jLight.position.set(JX,JY+1.8,JZ+0.5);jLight.color.set(d.sc);jLight.intensity=d.shape==='good'?0.6:1.1;
+}
+
+// ORBIT
+var drag=false,rDrag=false,lx=0,ly=0,lastTD=0;
+var sph={theta:0.0,phi:0.72,r:12};
+var pan=new THREE.Vector3(0,0,0);
+function camUpdate(){var x=sph.r*Math.sin(sph.phi)*Math.sin(sph.theta),y=sph.r*Math.cos(sph.phi),z=sph.r*Math.sin(sph.phi)*Math.cos(sph.theta);camera.position.set(x+pan.x,y+pan.y,z+pan.z);camera.lookAt(pan.x,pan.y,pan.z);}
+canvas.addEventListener('mousedown',function(e){drag=true;rDrag=e.button===2;lx=e.clientX;ly=e.clientY;canvas.style.cursor='grabbing';if(!rDrag){autoRot=false;updateRotBtn();}});
+canvas.addEventListener('contextmenu',function(e){e.preventDefault();});
+window.addEventListener('mousemove',function(e){if(!drag)return;var dx=e.clientX-lx,dy=e.clientY-ly;lx=e.clientX;ly=e.clientY;if(rDrag){pan.x-=dx*0.007;pan.y+=dy*0.007;}else{sph.theta-=dx*0.007;sph.phi=Math.max(0.12,Math.min(Math.PI*0.88,sph.phi+dy*0.007));}camUpdate();});
+window.addEventListener('mouseup',function(){drag=false;canvas.style.cursor='grab';});
+canvas.addEventListener('wheel',function(e){e.preventDefault();sph.r=Math.max(2.5,Math.min(25,sph.r+e.deltaY*0.016));camUpdate();},{passive:false});
+canvas.addEventListener('touchstart',function(e){if(e.touches.length===1){drag=true;rDrag=false;lx=e.touches[0].clientX;ly=e.touches[0].clientY;autoRot=false;updateRotBtn();}else if(e.touches.length===2){drag=false;lastTD=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}e.preventDefault();},{passive:false});
+canvas.addEventListener('touchmove',function(e){if(e.touches.length===1&&drag){var dx=e.touches[0].clientX-lx,dy=e.touches[0].clientY-ly;sph.theta-=dx*0.007;sph.phi=Math.max(0.12,Math.min(Math.PI*0.88,sph.phi+dy*0.007));lx=e.touches[0].clientX;ly=e.touches[0].clientY;}else if(e.touches.length===2){var td=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);sph.r=Math.max(2.5,Math.min(25,sph.r*(lastTD/td)));lastTD=td;}camUpdate();e.preventDefault();},{passive:false});
+canvas.addEventListener('touchend',function(){drag=false;});
+function resetCam(){sph={theta:0.0,phi:0.72,r:12};pan.set(0,0,0);camUpdate();}
+function zoomIn(){sph.r=Math.max(2.5,sph.r-1.5);camUpdate();}
+function zoomOut(){sph.r=Math.min(25,sph.r+1.5);camUpdate();}
+function updateRotBtn(){var b=document.getElementById('rotBtn');b.innerHTML='<span class="ico">&#8635;</span> '+(autoRot?'Stop':'Rotate');autoRot?b.classList.add('pressed'):b.classList.remove('pressed');}
+function toggleRotate(){autoRot=!autoRot;updateRotBtn();}
+
+// RESIZE
+function onResize(){
+  var w=vpwrap.clientWidth,h=vpwrap.clientHeight;
+  canvas.style.width=w+'px';canvas.style.height=h+'px';
+  renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();
+}
+window.addEventListener('resize',onResize);
+
+
+// ═══════════════════════════════════
+// REPAIR EFFECT OBJECTS
+// ═══════════════════════════════════
+var fxObjs = [];           // extra scene objects for effects (not in sObjs)
+var fxAnim = null;         // current animation function called each frame
+var fxT    = 0;            // effect timer
+
+function clearFX() {
+  fxObjs.forEach(function(o){ scene.remove(o); });
+  fxObjs = [];
+  fxAnim = null;
+  fxT = 0;
+}
+
+function addFX(obj) { scene.add(obj); fxObjs.push(obj); return obj; }
+
+// Helper: make a small sphere particle
+function mkParticle(color, radius) {
+  var m = new THREE.Mesh(
+    new THREE.SphereGeometry(radius||0.04, 8, 6),
+    new THREE.MeshStandardMaterial({color:color, emissive:color, emissiveIntensity:0.5, roughness:0.8, metalness:0})
+  );
+  return m;
+}
+
+// Soldering iron mesh (tip + handle)
+function makeSolderingIron(tipColor) {
+  var g = new THREE.Group();
+  // handle
+  var handle = new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,0.9,12), new THREE.MeshStandardMaterial({color:0x333333,roughness:0.7}));
+  handle.position.y = 0.45; g.add(handle);
+  // tip
+  var tip = new THREE.Mesh(new THREE.ConeGeometry(0.04,0.25,10), new THREE.MeshStandardMaterial({color:tipColor||0xffaa00,emissive:tipColor||0xffaa00,emissiveIntensity:0.4,roughness:0.3,metalness:0.8}));
+  tip.rotation.z = Math.PI; tip.position.y = -0.12; g.add(tip);
+  // heat glow
+  var glow = new THREE.Mesh(new THREE.SphereGeometry(0.09,10,8), new THREE.MeshStandardMaterial({color:0xff6600,emissive:0xff4400,emissiveIntensity:1,transparent:true,opacity:0.4}));
+  glow.position.y = -0.12; g.add(glow);
+  return g;
+}
+
+// Desoldering wick mesh
+function makeWick() {
+  var g = new THREE.Group();
+  var body = new THREE.Mesh(new THREE.BoxGeometry(0.15,0.05,0.5), new THREE.MeshStandardMaterial({color:0xcc9900,roughness:0.9,metalness:0.3}));
+  g.add(body);
+  // braid pattern
+  for(var i=0;i<5;i++){
+    var b = new THREE.Mesh(new THREE.BoxGeometry(0.16,0.02,0.05), new THREE.MeshStandardMaterial({color:0xddaa00,roughness:0.8,metalness:0.4}));
+    b.position.z = -0.2+i*0.1; b.position.y = 0.02; g.add(b);
+  }
+  return g;
+}
+
+// Smoke particle system
+var smokeParticles = [];
+function spawnSmoke(x,y,z) {
+  clearSmoke();
+  for(var i=0;i<12;i++){
+    var p = new THREE.Mesh(
+      new THREE.SphereGeometry(0.05+Math.random()*0.05,6,4),
+      new THREE.MeshBasicMaterial({color:0xaaaaaa,transparent:true,opacity:0.0})
+    );
+    p.position.set(x+(Math.random()-0.5)*0.2, y, z+(Math.random()-0.5)*0.2);
+    p.userData = {vx:(Math.random()-0.5)*0.008, vy:0.012+Math.random()*0.008, vz:(Math.random()-0.5)*0.008, life:0, maxLife:60+Math.floor(Math.random()*40)};
+    scene.add(p); smokeParticles.push(p); fxObjs.push(p);
+  }
+}
+function clearSmoke() {
+  smokeParticles.forEach(function(p){ scene.remove(p); });
+  smokeParticles = [];
+}
+function updateSmoke() {
+  smokeParticles.forEach(function(p){
+    p.userData.life++;
+    var t = p.userData.life / p.userData.maxLife;
+    p.position.x += p.userData.vx;
+    p.position.y += p.userData.vy * (1 - t);
+    p.position.z += p.userData.vz;
+    p.material.opacity = t < 0.3 ? t/0.3*0.35 : (1-t)*0.35;
+    p.scale.setScalar(1 + t*1.5);
+    if(p.userData.life >= p.userData.maxLife){ p.userData.life=0; }
+  });
+}
+
+// Solder drip particles
+var dripParticles = [];
+function spawnDrips(x,y,z,color) {
+  clearDrips();
+  for(var i=0;i<8;i++){
+    var p = mkParticle(color||0xdddddd, 0.04);
+    p.position.set(x, y+0.5, z);
+    p.userData = {vx:(Math.random()-0.5)*0.04, vy:0.02+Math.random()*0.02, vz:(Math.random()-0.5)*0.04, falling:false, startDelay:i*4};
+    scene.add(p); dripParticles.push(p); fxObjs.push(p);
+  }
+}
+function clearDrips() {
+  dripParticles.forEach(function(p){ scene.remove(p); });
+  dripParticles = [];
+}
+function updateDrips(JY) {
+  dripParticles.forEach(function(p){
+    if(p.userData.startDelay>0){p.userData.startDelay--;return;}
+    p.userData.falling = true;
+    p.position.x += p.userData.vx * 0.3;
+    p.position.y -= 0.018;
+    p.position.z += p.userData.vz * 0.3;
+    if(p.position.y < JY+0.15) { p.position.y = JY+0.15; p.userData.vx=0; p.userData.vz=0; }
+  });
+}
+
+// Flash ring
+function makeFlashRing(color) {
+  var m = new THREE.Mesh(
+    new THREE.TorusGeometry(0.3,0.015,8,40),
+    new THREE.MeshBasicMaterial({color:color, transparent:true, opacity:0.9})
+  );
+  m.rotation.x = Math.PI/2;
+  return m;
+}
+
+// ═══════════════════════════════════
+// STEP EFFECTS: called on each step change
+// ═══════════════════════════════════
+function playStepEffect(defectShape, stepIdx) {
+  clearFX();
+  clearSmoke();
+  clearDrips();
+  smokeParticles = [];
+  dripParticles = [];
+  fxObjs = [];
+
+  var JX=0, JY=0.102, JZ=0;
+
+  function makeIron(tipColor, sx, sz, rz) {
+    var g = makeSolderingIron(tipColor||0xff6600);
+    g.position.set(sx, JY+1.35, sz||JZ);
+    g.rotation.z = rz||-0.55;
+    addFX(g); return g;
+  }
+  function makeWick2(sx, sz) {
+    var w = makeWick();
+    w.position.set(sx||JX, JY+0.95, sz||JZ);
+    addFX(w); return w;
+  }
+  function dropFlux(ox, oz) {
+    var f = new THREE.Mesh(
+      new THREE.SphereGeometry(0.07,10,8),
+      new THREE.MeshStandardMaterial({color:0xffdd00,emissive:0xaa8800,emissiveIntensity:0.4,transparent:true,opacity:0.9,roughness:1})
+    );
+    f.position.set(JX+(ox||0), JY+1.25, JZ+(oz||0));
+    addFX(f); return f;
+  }
+  function pulseRing(color) {
+    var r = makeFlashRing(color);
+    r.position.set(JX, JY+0.05, JZ);
+    addFX(r); return r;
+  }
+  function okBurst() {
+    var r1=makeFlashRing(0x00ff44); r1.position.set(JX,JY+0.05,JZ); r1.scale.setScalar(0.3); addFX(r1);
+    var r2=makeFlashRing(0x44ff88); r2.position.set(JX,JY+0.05,JZ); r2.scale.setScalar(0.7); addFX(r2);
+    fxAnim=function(){fxT++;fxObjs.forEach(function(o){o.scale.setScalar(o.scale.x+0.032);o.material.opacity=Math.max(0,o.material.opacity-0.011);});if(fxT>90)clearFX();};
+  }
+  function probeTest(sparkColor) {
+    var p1=new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.005,0.7,8),new THREE.MeshStandardMaterial({color:0xff2200,roughness:0.3,metalness:0.5}));
+    p1.position.set(JX-0.45,JY+0.8,JZ); p1.rotation.z=0.28; addFX(p1);
+    var p2=new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.005,0.7,8),new THREE.MeshStandardMaterial({color:0x111111,roughness:0.3,metalness:0.5}));
+    p2.position.set(JX+0.45,JY+0.8,JZ); p2.rotation.z=-0.28; addFX(p2);
+    var sparked=false;
+    fxAnim=function(){
+      fxT++;
+      if(p1.position.y>JY+0.18) p1.position.y-=0.013;
+      if(p2.position.y>JY+0.18) p2.position.y-=0.013;
+      if(!sparked && p1.position.y<=JY+0.22){
+        sparked=true;
+        var sp=makeFlashRing(sparkColor||0x00ff44); sp.position.set(JX,JY+0.12,JZ); sp.scale.setScalar(0.25); addFX(sp);
+      }
+      fxObjs.forEach(function(o){if(o.material&&o.material.transparent&&o.scale.x>0.25)o.scale.setScalar(o.scale.x+0.024);});
+    };
+  }
+  function microscopeScan(color) {
+    var lens=new THREE.Mesh(new THREE.TorusGeometry(0.32,0.035,12,40),new THREE.MeshStandardMaterial({color:color||0x8888ff,transparent:true,opacity:0.65,roughness:0.2}));
+    lens.rotation.x=0.25; lens.position.set(JX,JY+1.1,JZ); addFX(lens);
+    var beam=new THREE.Mesh(new THREE.BoxGeometry(0.64,0.004,0.018),new THREE.MeshBasicMaterial({color:color||0x00ffff,transparent:true,opacity:0.85}));
+    beam.position.set(JX,JY+1.0,JZ); addFX(beam);
+    fxAnim=function(){fxT++;lens.position.y=JY+1.1+Math.sin(fxT*0.04)*0.05;beam.position.y=JY+1.0+Math.sin(fxT*0.04)*0.05;beam.position.z=-0.32+((fxT*0.007)%0.64);beam.material.opacity=0.4+Math.sin(fxT*0.14)*0.4;};
+  }
+  function ipaWipe(wipeColor) {
+    var pad=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.038,0.22),new THREE.MeshStandardMaterial({color:0xdddddd,roughness:0.9}));
+    pad.position.set(JX-0.55,JY+0.06,JZ); addFX(pad);
+    var wet=new THREE.Mesh(new THREE.BoxGeometry(0.55,0.008,0.3),new THREE.MeshStandardMaterial({color:wipeColor||0xcceeff,transparent:true,opacity:0.55,roughness:1}));
+    wet.position.set(JX,JY+0.04,JZ); addFX(wet);
+    fxAnim=function(){
+      fxT++;
+      pad.position.x=JX+Math.sin(fxT*0.14)*0.55;
+      wet.material.opacity=Math.max(0,0.55-fxT*0.005);
+      if(sObjs[0])sObjs[0].material.color.lerp(new THREE.Color(0xd8d8d8),0.015);
+      if(fxT>100)clearFX();
+    };
+  }
+  function calipersCheck(ok) {
+    var col=ok?0x44aa44:0x888888;
+    var matC=new THREE.MeshStandardMaterial({color:col,roughness:0.35,metalness:0.85});
+    var barTop=new THREE.Mesh(new THREE.BoxGeometry(0.78,0.035,0.035),matC); barTop.position.set(JX,JY+0.75,JZ); addFX(barTop);
+    var legL=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.6,0.03),matC); legL.position.set(JX-0.38,JY+0.44,JZ); addFX(legL);
+    var legR=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.6,0.03),matC); legR.position.set(JX+0.38,JY+0.44,JZ); addFX(legR);
+    fxAnim=function(){
+      fxT++;
+      if(legL.position.x>JX-0.27) legL.position.x-=0.007;
+      if(legR.position.x<JX+0.27) legR.position.x+=0.007;
+      if(barTop.scale.x>0.68) barTop.scale.x-=0.005;
+      if(ok&&fxT===65){var r=makeFlashRing(0x00ff44);r.position.set(JX,JY+0.05,JZ);r.scale.setScalar(0.3);addFX(r);}
+    };
+  }
+  function coatingSeal() {
+    var coat=new THREE.Mesh(new THREE.SphereGeometry(0.3,20,14),new THREE.MeshStandardMaterial({color:0x88ccff,transparent:true,opacity:0.0,roughness:0.1,metalness:0.1}));
+    coat.scale.set(1,0.3,1); coat.position.set(JX,JY+0.04,JZ); addFX(coat);
+    var d1=new THREE.Mesh(new THREE.SphereGeometry(0.04,8,6),new THREE.MeshStandardMaterial({color:0x99ddff,transparent:true,opacity:0.0,roughness:0.2}));
+    d1.position.set(JX-0.05,JY+1.1,JZ+0.05); addFX(d1);
+    var d2=new THREE.Mesh(new THREE.SphereGeometry(0.035,8,6),new THREE.MeshStandardMaterial({color:0x99ddff,transparent:true,opacity:0.0,roughness:0.2}));
+    d2.position.set(JX+0.1,JY+1.2,JZ-0.05); addFX(d2);
+    fxAnim=function(){
+      fxT++;
+      if(d1.position.y>JY+0.12){d1.position.y-=0.02;d1.material.opacity=Math.min(0.9,fxT*0.022);}
+      else{d1.material.opacity=Math.max(0,d1.material.opacity-0.04);}
+      if(fxT>18&&d2.position.y>JY+0.12){d2.position.y-=0.02;d2.material.opacity=Math.min(0.9,(fxT-18)*0.022);}
+      else if(fxT>18){d2.material.opacity=Math.max(0,d2.material.opacity-0.04);}
+      coat.material.opacity=Math.min(0.5,fxT*0.005);
+      coat.scale.x=Math.min(1.3,coat.scale.x+0.006);
+      coat.scale.z=Math.min(1.3,coat.scale.z+0.006);
+    };
+  }
+
+  // ══ NO DEFECT ══
+  if (defectShape==='good') {
+    if (stepIdx===0) { microscopeScan(0x00ffff); }
+    else if (stepIdx===1) { probeTest(0x00ff88); }
+    else if (stepIdx===2) {
+      var pa=new THREE.Mesh(new THREE.ConeGeometry(0.07,0.2,10),new THREE.MeshStandardMaterial({color:0x00aaff,emissive:0x004488,emissiveIntensity:0.5}));
+      pa.rotation.z=-Math.PI/2; pa.position.set(JX-0.9,JY+0.22,JZ); addFX(pa);
+      fxAnim=function(){fxT++;if(pa.position.x<JX-0.28)pa.position.x+=0.013;else if(fxT>65)pa.position.x-=0.013;pa.material.emissiveIntensity=0.3+Math.sin(fxT*0.12)*0.3;};
+    }
+    else if (stepIdx===3) { okBurst(); }
+    return;
+  }
+
+  // ══ SOLDER BRIDGE ══
+  if (defectShape==='bridge') {
+    if (stepIdx===0) {
+      var r=pulseRing(0xff4444);
+      fxAnim=function(){fxT++;r.scale.setScalar(1+Math.sin(fxT*0.08)*0.22);r.material.opacity=0.35+Math.sin(fxT*0.12)*0.35;};
+    } else if (stepIdx===1) {
+      var f1=dropFlux(-0.3,0),f2=dropFlux(0.3,0),f3=dropFlux(0,0);
+      fxAnim=function(){fxT++;[f1,f2,f3].forEach(function(f,i){if(fxT>i*12&&f.position.y>JY+0.12){f.position.y-=0.022;}else if(fxT>i*12){f.scale.x=Math.min(2.2,f.scale.x+0.07);f.scale.z=Math.min(2.2,f.scale.z+0.07);f.scale.y=Math.max(0.18,f.scale.y-0.008);}});};
+    } else if (stepIdx===2) {
+      var iron=makeIron(0xff6600,JX+0.85,JZ,-0.55);
+      var wick=makeWick2(JX,JZ);
+      spawnSmoke(JX,JY+0.3,JZ);
+      fxAnim=function(){fxT++;if(iron.position.x>JX+0.18)iron.position.x-=0.016;if(iron.position.y>JY+0.38)iron.position.y-=0.014;if(wick.position.y>JY+0.08)wick.position.y-=0.013;updateSmoke();if(fxT>40&&sObjs.length>2){if(sObjs[1]&&sObjs[1].scale.x>0.04)sObjs[1].scale.x-=0.022;if(sObjs[0])sObjs[0].scale.setScalar(Math.max(0.04,sObjs[0].scale.x-0.018));if(sObjs[2])sObjs[2].scale.setScalar(Math.max(0.04,sObjs[2].scale.x-0.018));}};
+    } else if (stepIdx===3) { ipaWipe(0xddeeff); }
+    else if (stepIdx===4) {
+      var iron2=makeIron(0xff8800,JX+0.8,JZ,-0.5);
+      spawnDrips(JX,JY,JZ,0xdddddd); spawnSmoke(JX,JY+0.18,JZ);
+      fxAnim=function(){fxT++;if(iron2.position.x>JX+0.22)iron2.position.x-=0.014;if(iron2.position.y>JY+0.42)iron2.position.y-=0.012;updateDrips(JY);updateSmoke();};
+    } else if (stepIdx===5) { probeTest(0x00ff44); }
+    return;
+  }
+
+  // ══ INSUFFICIENT SOLDER ══
+  if (defectShape==='insufficient') {
+    if (stepIdx===0) {
+      var r=pulseRing(0xffaa00);
+      fxAnim=function(){fxT++;r.rotation.z+=0.04;r.material.opacity=0.35+Math.sin(fxT*0.1)*0.35;};
+    } else if (stepIdx===1) {
+      var f=dropFlux(0,0);
+      fxAnim=function(){fxT++;if(f.position.y>JY+0.08){f.position.y-=0.02;}else{f.scale.x=Math.min(2.0,f.scale.x+0.065);f.scale.z=Math.min(2.0,f.scale.z+0.065);f.scale.y=Math.max(0.2,f.scale.y-0.008);}};
+    } else if (stepIdx===2) {
+      var iron=makeIron(0xff8800,JX-0.9,JZ,0.5);
+      spawnSmoke(JX,JY+0.2,JZ);
+      fxAnim=function(){fxT++;if(iron.position.x<JX-0.22)iron.position.x+=0.016;if(iron.position.y>JY+0.44)iron.position.y-=0.013;updateSmoke();};
+    } else if (stepIdx===3) {
+      var iron2=makeIron(0xff8800,JX-0.9,JZ,0.5);
+      var wire=new THREE.Mesh(new THREE.CylinderGeometry(0.019,0.019,0.85,8),new THREE.MeshStandardMaterial({color:0xcccccc,metalness:0.9,roughness:0.2}));
+      wire.rotation.z=Math.PI/2; wire.position.set(JX-1.05,JY+0.22,JZ-0.1); addFX(wire);
+      spawnSmoke(JX,JY+0.24,JZ); spawnDrips(JX,JY,JZ,0xd4a040);
+      fxAnim=function(){fxT++;if(iron2.position.x<JX-0.22)iron2.position.x+=0.016;if(iron2.position.y>JY+0.44)iron2.position.y-=0.013;if(wire.position.x<JX-0.1)wire.position.x+=0.014;updateSmoke();updateDrips(JY);if(fxT>30&&sObjs[0]){var s=sObjs[0];if(s.scale.x<1.7){s.scale.x+=0.013;s.scale.z+=0.013;s.scale.y+=0.009;}}};
+    } else if (stepIdx===4) {
+      // COOL DOWN: iron retreats, joint solidifies gold
+      var ironC=makeIron(0xff4400,JX-0.24,JZ,0.5);
+      fxAnim=function(){
+        fxT++;
+        ironC.position.x-=0.016;
+        ironC.position.y+=0.012;
+        if(sObjs[0]){
+          sObjs[0].material.color.lerp(new THREE.Color(0xd4a035),0.035);
+          sObjs[0].material.roughness=Math.min(0.3,sObjs[0].material.roughness+0.004);
+        }
+        if(sObjs[0])sObjs[0].scale.setScalar(1.0+Math.sin(fxT*0.25)*0.006);
+      };
+    } else if (stepIdx===5) { microscopeScan(0x00ff88); }
+    return;
+  }
+
+  // ══ EXCESS SOLDER ══
+  if (defectShape==='excess') {
+    if (stepIdx===0) { calipersCheck(false); }
+    else if (stepIdx===1) {
+      var f1=dropFlux(-0.12,0.08),f2=dropFlux(0.14,-0.06),f3=dropFlux(0,0);
+      fxAnim=function(){fxT++;[f1,f2,f3].forEach(function(f,i){if(fxT>i*14&&f.position.y>JY+0.24){f.position.y-=0.022;}else if(fxT>i*14){f.scale.x=Math.min(1.8,f.scale.x+0.06);f.scale.z=Math.min(1.8,f.scale.z+0.06);f.scale.y=Math.max(0.2,f.scale.y-0.007);}});};
+    } else if (stepIdx===2) {
+      var wick=makeWick2(JX,JZ);
+      var iron=makeIron(0xff6600,JX+0.9,JZ,-0.5);
+      spawnSmoke(JX,JY+0.42,JZ);
+      fxAnim=function(){fxT++;if(wick.position.y>JY+0.18)wick.position.y-=0.013;if(iron.position.x>JX+0.22)iron.position.x-=0.015;if(iron.position.y>JY+0.48)iron.position.y-=0.012;updateSmoke();if(fxT>42&&sObjs[0]){var s=sObjs[0];if(s.scale.y>0.58){s.scale.y-=0.011;s.scale.x-=0.008;s.scale.z-=0.008;}}if(fxT>42&&sObjs[1])sObjs[1].scale.setScalar(Math.max(0.08,sObjs[1].scale.x-0.011));};
+    } else if (stepIdx===3) {
+      // SHAPE FILLET: iron re-heats, solder flows into concave fillet
+      var ironS=makeIron(0xff7700,JX+0.8,JZ,-0.5);
+      spawnSmoke(JX,JY+0.22,JZ);
+      fxAnim=function(){fxT++;if(ironS.position.x>JX+0.2)ironS.position.x-=0.013;if(ironS.position.y>JY+0.4)ironS.position.y-=0.012;updateSmoke();if(fxT>35&&sObjs[0]){sObjs[0].material.color.lerp(new THREE.Color(0xbbbbbb),0.025);sObjs[0].material.roughness=Math.max(0.12,sObjs[0].material.roughness-0.005);sObjs[0].material.metalness=Math.min(0.88,sObjs[0].material.metalness+0.004);}};
+    } else if (stepIdx===4) { ipaWipe(0xddeeff); }
+    else if (stepIdx===5) { calipersCheck(true); }
+    return;
+  }
+
+  // ══ COLD SOLDER JOINT ══
+  if (defectShape==='cold') {
+    if (stepIdx===0) { microscopeScan(0xff8800); }
+    else if (stepIdx===1) {
+      // APPLY FLUX: gel beads appear and drop around joint perimeter
+      var gels=[];
+      for(var gi=0;gi<6;gi++){
+        var ga=(gi/6)*Math.PI*2;
+        var gel=new THREE.Mesh(new THREE.SphereGeometry(0.055,8,6),new THREE.MeshStandardMaterial({color:0xffee44,emissive:0xaa8800,emissiveIntensity:0.35,transparent:true,opacity:0.0,roughness:1}));
+        gel.position.set(JX+Math.cos(ga)*0.23,JY+0.95,JZ+Math.sin(ga)*0.23);
+        addFX(gel); gels.push(gel);
+      }
+      fxAnim=function(){fxT++;gels.forEach(function(gel){if(gel.position.y>JY+0.05)gel.position.y-=0.016;gel.material.opacity=Math.min(0.88,gel.material.opacity+0.022);if(gel.position.y<=JY+0.07){gel.scale.x=Math.min(1.5,gel.scale.x+0.02);gel.scale.z=Math.min(1.5,gel.scale.z+0.02);gel.scale.y=Math.max(0.28,gel.scale.y-0.01);}});};
+    } else if (stepIdx===2) {
+      var ironR=makeIron(0xff4400,JX+0.9,JZ,-0.55);
+      spawnSmoke(JX,JY+0.3,JZ);
+      fxAnim=function(){fxT++;if(ironR.position.x>JX+0.2)ironR.position.x-=0.016;if(ironR.position.y>JY+0.38)ironR.position.y-=0.013;updateSmoke();if(fxT>45&&sObjs[0]){var jt=sObjs[0];jt.material.roughness=Math.max(0.18,jt.material.roughness-0.015);jt.material.metalness=Math.min(0.8,jt.material.metalness+0.012);jt.material.color.lerp(new THREE.Color(0x34d399),0.03);for(var bi=1;bi<sObjs.length-2;bi++){if(sObjs[bi])sObjs[bi].scale.setScalar(Math.max(0.01,sObjs[bi].scale.x-0.009));}}};
+    } else if (stepIdx===3) {
+      // ADD SOLDER IF NEEDED: thin wire + small drips
+      var ironA=makeIron(0xff7700,JX-0.9,JZ,0.5);
+      var wire=new THREE.Mesh(new THREE.CylinderGeometry(0.017,0.017,0.75,8),new THREE.MeshStandardMaterial({color:0xcccccc,metalness:0.9,roughness:0.2}));
+      wire.rotation.z=Math.PI/2; wire.position.set(JX-0.98,JY+0.2,JZ); addFX(wire);
+      spawnDrips(JX,JY,JZ,0x34d399);
+      fxAnim=function(){fxT++;if(ironA.position.x<JX-0.22)ironA.position.x+=0.015;if(ironA.position.y>JY+0.44)ironA.position.y-=0.012;if(wire.position.x<JX-0.12)wire.position.x+=0.013;updateDrips(JY);if(fxT>30&&sObjs[0]){var s=sObjs[0];if(s.scale.x<1.12){s.scale.x+=0.006;s.scale.z+=0.006;s.scale.y+=0.004;}}};
+    } else if (stepIdx===4) {
+      // CONTROLLED COOLDOWN: iron retreats, joint locks in shiny
+      var ironCool=makeIron(0xff4400,JX+0.22,JZ,-0.55);
+      fxAnim=function(){fxT++;ironCool.position.x+=0.013;ironCool.position.y+=0.011;if(sObjs[0]){sObjs[0].material.color.lerp(new THREE.Color(0x34d399),0.03);sObjs[0].material.roughness=Math.min(0.22,sObjs[0].material.roughness+0.003);}if(sObjs[0])sObjs[0].scale.setScalar(1.0+Math.sin(fxT*0.22)*0.007);};
+    } else if (stepIdx===5) { microscopeScan(0x00ff88); }
+    return;
+  }
+
+  // ══ CRACKED JOINT ══
+  if (defectShape==='cracked') {
+    if (stepIdx===0) {
+      var r1=pulseRing(0xff2222);
+      var r2=makeFlashRing(0xff8800); r2.position.set(JX,JY+0.05,JZ); r2.scale.setScalar(0.55); addFX(r2);
+      fxAnim=function(){fxT++;r1.scale.setScalar(1+Math.sin(fxT*0.07)*0.28);r1.material.opacity=0.3+Math.sin(fxT*0.1)*0.4;r2.rotation.y+=0.04;r2.material.opacity=0.2+Math.sin(fxT*0.13)*0.3;};
+    } else if (stepIdx===1) {
+      // CONTINUITY TEST: yellow spark = high resistance (bad)
+      probeTest(0xffff00);
+    } else if (stepIdx===2) {
+      // REMOVE SOLDER: wick + iron SUCKS solder away — joint SHRINKS to nothing
+      var ironRem=makeIron(0xff5500,JX-0.88,JZ,0.5);
+      var wickRem=makeWick2(JX,JZ);
+      spawnSmoke(JX,JY+0.28,JZ);
+      fxAnim=function(){
+        fxT++;
+        if(ironRem.position.x<JX-0.22)ironRem.position.x+=0.015;
+        if(ironRem.position.y>JY+0.4)ironRem.position.y-=0.012;
+        if(wickRem.position.y>JY+0.08)wickRem.position.y-=0.013;
+        updateSmoke();
+        if(fxT>38&&sObjs[0]){
+          sObjs[0].scale.setScalar(Math.max(0.04,sObjs[0].scale.x-0.014));
+          sObjs[0].material.transparent=true;
+          sObjs[0].material.opacity=Math.max(0.04,(sObjs[0].material.opacity||1)-0.009);
+        }
+        if(fxT>50&&sObjs[1])sObjs[1].scale.setScalar(Math.max(0.01,sObjs[1].scale.x-0.022));
+        if(fxT>55&&sObjs[2])sObjs[2].scale.setScalar(Math.max(0.01,sObjs[2].scale.x-0.022));
+      };
+    } else if (stepIdx===3) {
+      // CLEAN SURFACES: abrasive pad scrubs side-to-side, IPA rinse
+      var abrasive=new THREE.Mesh(new THREE.BoxGeometry(0.26,0.04,0.22),new THREE.MeshStandardMaterial({color:0xaa5500,roughness:1,metalness:0}));
+      abrasive.position.set(JX,JY+0.07,JZ); addFX(abrasive);
+      var rinse=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.008,0.35),new THREE.MeshStandardMaterial({color:0xcceeff,transparent:true,opacity:0.55,roughness:1}));
+      rinse.position.set(JX,JY+0.04,JZ); addFX(rinse);
+      fxAnim=function(){
+        fxT++;
+        abrasive.position.x=JX+Math.sin(fxT*0.18)*0.45;
+        abrasive.position.z=JZ+Math.sin(fxT*0.09)*0.15;
+        rinse.material.opacity=Math.max(0,0.55-fxT*0.005);
+        if(sObjs[0]){
+          sObjs[0].material.color.lerp(new THREE.Color(0xc0c0c0),0.018);
+          if(sObjs[0].material.transparent){sObjs[0].material.opacity=Math.min(0.6,(sObjs[0].material.opacity||0.04)+0.01);}
+        }
+        if(fxT>110)clearFX();
+      };
+    } else if (stepIdx===4) {
+      // APPLY FRESH SOLDER: iron + wire + drips + joint regrows shiny, cracks disappear
+      var ironNew=makeIron(0xff8800,JX+0.88,JZ,-0.5);
+      var wireNew=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.82,8),new THREE.MeshStandardMaterial({color:0xcccccc,metalness:0.9,roughness:0.2}));
+      wireNew.rotation.z=Math.PI/2; wireNew.position.set(JX+0.92,JY+0.22,JZ-0.1); addFX(wireNew);
+      spawnDrips(JX,JY,JZ,0xbbbbbb); spawnSmoke(JX,JY+0.2,JZ);
+      fxAnim=function(){
+        fxT++;
+        if(ironNew.position.x>JX+0.22)ironNew.position.x-=0.015;
+        if(ironNew.position.y>JY+0.38)ironNew.position.y-=0.012;
+        if(wireNew.position.x>JX+0.1)wireNew.position.x-=0.013;
+        updateDrips(JY); updateSmoke();
+        if(fxT>35&&sObjs[0]){
+          sObjs[0].material.transparent=false; sObjs[0].material.opacity=1;
+          sObjs[0].material.color.lerp(new THREE.Color(0x34d399),0.04);
+          sObjs[0].material.roughness=Math.max(0.18,sObjs[0].material.roughness-0.012);
+          sObjs[0].material.metalness=Math.min(0.8,sObjs[0].material.metalness+0.01);
+          sObjs[0].scale.setScalar(Math.min(1.0,sObjs[0].scale.x+0.016));
+          if(sObjs[1])sObjs[1].scale.setScalar(Math.max(0.01,sObjs[1].scale.x-0.016));
+          if(sObjs[2])sObjs[2].scale.setScalar(Math.max(0.01,sObjs[2].scale.x-0.016));
+        }
+      };
+    } else if (stepIdx===5) {
+      // STRESS RELIEF: conformal coating drips and spreads blue
+      coatingSeal();
+    } else if (stepIdx===6) {
+      // FINAL TEST: probes + GREEN spark = continuity restored
+      probeTest(0x00ff44);
+    }
+    return;
+  }
+}
+// ANIMATE
+var glowT=0;
+function animate(){
+  requestAnimationFrame(animate);
+  if(autoRot){sph.theta+=0.005;camUpdate();}
+  glowT+=0.04;
+  // Animate transparent rings pulse
+  sObjs.forEach(function(o){if(o.material&&o.material.transparent&&o.material.opacity<0.8)o.material.opacity=0.3+Math.sin(glowT)*0.18;});
+  // Bob the arrow (last 2 sObjs are shaft and head)
+  if(sObjs.length>=2){
+    var bob=Math.sin(glowT*1.8)*0.12;
+    var shaft=sObjs[sObjs.length-2];
+    var head=sObjs[sObjs.length-1];
+    if(shaft&&head){shaft.position.y=0.102+0.85+bob;head.position.y=0.102+0.48+bob;}
+  }
+  // Run current step fx
+  if(fxAnim) fxAnim();
+  renderer.render(scene,camera);
+}
+
+
+// RING
+function drawRing(conf,color){
+  var c=document.getElementById('ringc'),ctx=c.getContext('2d');
+  ctx.clearRect(0,0,60,60);
+  ctx.beginPath();ctx.arc(30,30,22,0,Math.PI*2);ctx.strokeStyle='#d0d0d0';ctx.lineWidth=6;ctx.stroke();
+  ctx.beginPath();ctx.arc(30,30,22,-Math.PI/2,-Math.PI/2+(conf/100)*Math.PI*2);ctx.strokeStyle=color;ctx.lineWidth=6;ctx.lineCap='round';ctx.stroke();
+}
+
+// SELECT DEFECT
+function selectDefect(id){
+  curDef=id;curStep=0;
+  document.querySelectorAll('.lbi').forEach(function(e){e.classList.remove('sel');});
+  document.getElementById('lbi-'+id).classList.add('sel');
+  var d=DEFECTS[id];
+
+  buildJoint(id);
+  playStepEffect(d.shape, 0);
+  document.getElementById('tbLabel').textContent=d.sn+' | Conf: '+d.conf.toFixed(1)+'%';
+  document.getElementById('tbLabel').style.color=d.sc;
+
+  // Viewport title
+  document.getElementById('vpName').textContent=d.sn;
+  document.getElementById('vpConf').textContent=d.conf.toFixed(1)+'%';
+
+  // Severity
+  document.getElementById('sevFill').style.width=d.sevW+'%';
+  document.getElementById('sevFill').style.background=d.sc;
+  document.getElementById('sevLbl').textContent=d.sev;
+  document.getElementById('sevLbl').style.color=d.sc;
+  document.getElementById('sevTxt').textContent=d.sev+' — '+d.sevW+'%';
+
+  // Properties
+  document.getElementById('pSev').textContent=d.sev;document.getElementById('pSev').style.color=d.sc;
+  document.getElementById('pRisk').textContent=d.risk;document.getElementById('pRisk').style.color=d.lc;
+  document.getElementById('pRework').textContent=d.rework;document.getElementById('pRework').style.color=d.rc;
+  document.getElementById('pTime').textContent=d.time;document.getElementById('pTime').style.color=d.tc;
+  document.getElementById('pConf').textContent=d.conf.toFixed(1)+'%';
+
+  // Ring + result
+  drawRing(d.conf,d.sc);
+  document.getElementById('rPct').textContent=Math.round(d.conf)+'%';
+  document.getElementById('rName').textContent=d.name;
+  document.getElementById('rStatus').textContent=(d.rework==='NO'?'\u2713 Within Spec':'\u26a0 Rework Required');
+  document.getElementById('rStatus').style.color=d.sc;
+
+  // Metrics
+  document.getElementById('mSev').textContent=d.sev;document.getElementById('mSev').style.color=d.sc;
+  document.getElementById('mRisk').textContent=d.risk;document.getElementById('mRisk').style.color=d.lc;
+  document.getElementById('mRework').textContent=d.rework;document.getElementById('mRework').style.color=d.rc;
+  document.getElementById('mTime').textContent=d.time;document.getElementById('mTime').style.color=d.tc;
+
+  // Steps list
+  var h='';
+  for(var i=0;i<d.steps.length;i++){
+    h+='<div class="sbi'+(i===0?' active':'')+'" id="sbi-'+i+'" onclick="goToStep('+i+')">'
+      +'<div class="sbi-arrow">&#9658;</div>'
+      +'<div class="sbi-num">'+(i+1)+'</div>'
+      +'<div class="sbi-text">'+d.steps[i].t+'</div>'
+      +'</div>';
+  }
+  document.getElementById('stepsBox').innerHTML=h;
+
+  // Tools
+  var th='';
+  for(var i=0;i<d.tools.length;i++) th+='<span class="tool-tag">'+d.tools[i]+'</span>';
+  document.getElementById('toolsWrap').innerHTML=th;
+
+  // Status bar
+  document.getElementById('sbDefect').textContent='Defect: '+d.name;
+  var led=document.getElementById('led1');led.style.background=d.sc;
+
+  updateStepBar();
+}
+
+function updateStepBar(){
+  var d=DEFECTS[curDef],s=d.steps[curStep];
+  document.getElementById('stepNum').textContent=curStep+1;
+  document.getElementById('stepTitle').textContent=s.t;
+  document.getElementById('stepDesc').textContent=s.d;
+  document.getElementById('sbStepPane').textContent='Step: '+(curStep+1)+' / '+d.steps.length;
+
+  var dots='';
+  for(var i=0;i<d.steps.length;i++) dots+='<div class="sdot'+(i===curStep?' cur':i<curStep?' done':'')+'"></div>';
+  document.getElementById('stepDots').innerHTML=dots;
+
+  for(var i=0;i<d.steps.length;i++){
+    var el=document.getElementById('sbi-'+i);if(!el)continue;
+    el.className='sbi'+(i===curStep?' active':i<curStep?' done':'');
+    el.querySelector('.sbi-num').textContent=i<curStep?'\u2713':(i+1);
+    if(i===curStep)el.scrollIntoView({block:'nearest',behavior:'smooth'});
+  }
+}
+
+function goToStep(i){curStep=i;updateStepBar();playStepEffect(DEFECTS[curDef].shape,i);}
+function nextStep(){if(curStep<DEFECTS[curDef].steps.length-1){curStep++;updateStepBar();playStepEffect(DEFECTS[curDef].shape,curStep);}}
+function prevStep(){if(curStep>0){curStep--;updateStepBar();playStepEffect(DEFECTS[curDef].shape,curStep);}}
+
+function runSim(){
+  if(simRunning)return;simRunning=true;
+  var btn=document.getElementById('simBtn'),bTop=document.getElementById('simBtnTop');
+  btn.textContent='Simulating...';btn.disabled=true;
+  bTop.innerHTML='<span class="ico">&#9711;</span> Running';bTop.disabled=true;
+  autoRot=true;updateRotBtn();curStep=0;
+  var total=DEFECTS[curDef].steps.length,i=0;
+  var iv=setInterval(function(){
+    if(i>=total){
+      clearInterval(iv);simRunning=false;
+      btn.textContent='\u25b6 Run Full Simulation';btn.disabled=false;
+      bTop.innerHTML='<span class="ico">&#9654;</span> Simulate';bTop.disabled=false;
+      autoRot=false;updateRotBtn();return;
+    }
+    curStep=i++;updateStepBar();playStepEffect(DEFECTS[curDef].shape,curStep);
+  },1800);
+}
+
+// INIT
+buildList();
+buildPCB();
+camUpdate();
+onResize();
+selectDefect(0);
+canvas.style.cursor='grab';
+animate();
+</script>
+</body>
+</html>
